@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🕌 Islamic Tools</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+body { background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); min-height: 100vh; color: #fff; padding: 16px; }
+.container { max-width: 480px; margin: 0 auto; }
+.header { text-align: center; padding: 20px; background: rgba(255,255,255,0.08); border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 16px; }
+.header h1 { font-size: 22px; margin-bottom: 6px; }
+.header p { font-size: 12px; color: #a0d8ef; }
+.clock { font-size: 36px; font-weight: bold; color: #4ade80; margin: 12px 0; text-shadow: 0 0 20px rgba(74,222,128,0.5); }
+.date { font-size: 13px; color: #cbd5e1; }
+.card { background: rgba(255,255,255,0.08); border-radius: 16px; padding: 16px; margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.1); }
+.card h2 { font-size: 15px; margin-bottom: 12px; color: #fbbf24; }
+.prayer { display: flex; justify-content: space-between; padding: 10px 12px; margin-bottom: 6px; background: rgba(255,255,255,0.05); border-radius: 10px; border-left: 3px solid #4ade80; font-size: 14px; }
+.prayer .time { color: #4ade80; font-weight: bold; font-family: monospace; }
+.next-prayer { background: linear-gradient(135deg, #f59e0b, #ef4444); border-radius: 12px; padding: 14px; text-align: center; margin-bottom: 12px; }
+.next-prayer .label { font-size: 12px; opacity: 0.9; }
+.next-prayer .name { font-size: 22px; font-weight: bold; margin: 4px 0; }
+.next-prayer .countdown { font-size: 14px; font-family: monospace; }
+button { width: 100%; padding: 12px; background: linear-gradient(135deg, #4ade80, #22c55e); border: none; border-radius: 10px; color: #052e16; font-weight: bold; font-size: 14px; cursor: pointer; margin-top: 8px; }
+input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: #fff; font-size: 14px; margin-bottom: 8px; }
+.loader { text-align: center; padding: 20px; color: #4ade80; }
+.error { color: #ef4444; font-size: 13px; text-align: center; }
+.footer { text-align: center; font-size: 11px; color: #64748b; margin-top: 16px; }
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header">
+<h1>🕌 Islamic Tools</h1>
+<p id="lokasi">📍 Memuat...</p>
+<div class="clock" id="clock">00:00:00</div>
+<div class="date" id="date">-</div>
+</div>
+
+<div class="next-prayer">
+<div class="label">⏰ Sholat Berikutnya</div>
+<div class="name" id="nextName">-</div>
+<div class="countdown" id="countdown">-</div>
+</div>
+
+<div class="card">
+<h2>🕌 Jadwal Sholat Hari Ini</h2>
+<div id="jadwalBox"><div class="loader">⏳ Memuat jadwal...</div></div>
+</div>
+
+<div class="card">
+<h2>⚙️ Pengaturan</h2>
+<input type="text" id="inputKota" placeholder="Nama kota" value="Kediri">
+<button onclick="gantiKota()">💾 Simpan Kota</button>
+</div>
+
+<div class="footer">Powered by Aladhan API</div>
+</div>
+
+<script>
+let jadwalData = null;
+let kota = localStorage.getItem('kota') || 'Kediri';
+
+function pad(n) { return n < 10 ? '0' + n : n; }
+
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent = pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+  const hari = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+  const bulan = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  document.getElementById('date').textContent = hari[now.getDay()] + ', ' + now.getDate() + ' ' + bulan[now.getMonth()] + ' ' + now.getFullYear();
+  updateCountdown();
+}
+
+function updateCountdown() {
+  if (!jadwalData) return;
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const prayers = [
+    {name:'Subuh', time: jadwalData.Subuh},
+    {name:'Dzuhur', time: jadwalData.Dzuhur},
+    {name:'Ashar', time: jadwalData.Ashar},
+    {name:'Maghrib', time: jadwalData.Maghrib},
+    {name:'Isya', time: jadwalData.Isha}
+  ];
+  let next = null;
+  for (let p of prayers) {
+    const [h, m] = p.time.split(':').map(Number);
+    if (h * 60 + m > nowMin) { next = p; break; }
+  }
+  if (!next) { next = prayers[0]; document.getElementById('nextName').textContent = next.name + ' (besok)'; }
+  else { document.getElementById('nextName').textContent = next.name; }
+  const [nh, nm] = next.time.split(':').map(Number);
+  let target = new Date();
+  target.setHours(nh, nm, 0, 0);
+  if (target < now) target.setDate(target.getDate() + 1);
+  const diff = Math.floor((target - now) / 1000);
+  const h = Math.floor(diff / 3600);
+  const m = Math.floor((diff % 3600) / 60);
+  const s = diff % 60;
+  document.getElementById('countdown').textContent = `Sisa: ${h}j ${m}m ${s}s • Pukul ${next.time}`;
+}
+
+async function loadJadwal() {
+  const box = document.getElementById('jadwalBox');
+  box.innerHTML = '<div class="loader">⏳ Memuat jadwal...</div>';
+  try {
+    const url = `https://api.aladhan.com/v1/timingsByCity?city=${encodeURIComponent(kota)}&country=Indonesia&method=11`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const t = data.data.timings;
+    jadwalData = { Subuh: t.Fajr, Syuruq: t.Sunrise, Dzuhur: t.Dhuhr, Ashar: t.Asr, Maghrib: t.Maghrib, Isya: t.Isha };
+    const icons = {Subuh:'🌙',Syuruq:'🌅',Dzuhur:'☀️',Ashar:'🌤️',Maghrib:'🌇',Isya:'🌃'};
+    let html = '';
+    for (let [nama, waktu] of Object.entries(jadwalData)) {
+      html += `<div class="prayer"><span>${icons[nama]} ${nama}</span><span class="time">${waktu}</span></div>`;
+    }
+    box.innerHTML = html;
+    document.getElementById('lokasi').textContent = `📍 ${kota}, Indonesia`;
+    updateCountdown();
+  } catch (e) {
+    box.innerHTML = `<div class="error">❌ Gagal: ${e.message}</div>`;
+  }
+}
+
+function gantiKota() {
+  const input = document.getElementById('inputKota').value.trim();
+  if (!input) return alert('Isi kota dulu!');
+  kota = input;
+  localStorage.setItem('kota', kota);
+  loadJadwal();
+}
+
+document.getElementById('inputKota').value = kota;
+setInterval(updateClock, 1000);
+updateClock();
+loadJadwal();
+</script>
+</body>
+  </html>
